@@ -127,6 +127,28 @@ _download_file() {
     fi
 }
 
+_pfctl_exec() {
+    local stderr_file="${TMP_DIR}/pfctl.stderr.$$.$RANDOM"
+
+    if ! "$PFCTL_BIN" "$@" 2>"$stderr_file"; then
+        cat "$stderr_file" >&2 || true
+        rm -f "$stderr_file"
+        return 1
+    fi
+
+    if [ -s "$stderr_file" ]; then
+        awk '
+            /Use of -f option, could result in flushing of rules/ { next }
+            /present in the main ruleset added by the system at startup\./ { next }
+            /See \/etc\/pf.conf for further details\./ { next }
+            /^$/ { next }
+            { print }
+        ' "$stderr_file" >&2
+    fi
+
+    rm -f "$stderr_file"
+}
+
 _parse_dshield_file() {
     local file="$1"
     awk '/^[0-9]/ { print $1 "/" $3 }' "$file" | sort -u
@@ -509,7 +531,7 @@ _pf_bootstrap_anchor() {
             _die "Failed to validate /etc/pf.conf after pf bootstrap."
         fi
 
-        "$PFCTL_BIN" -q -f /etc/pf.conf >/dev/null 2>&1
+        _pfctl_exec -q -f /etc/pf.conf >/dev/null
     fi
 }
 
@@ -535,9 +557,9 @@ block out quick from any to <autosecure_bad_hosts>
 PFEOF
     fi
 
-    "$PFCTL_BIN" -q -a "$PF_ANCHOR" -f "$PF_ANCHOR_FILE"
-    "$PFCTL_BIN" -q -a "$PF_ANCHOR" -t autosecure_bad_hosts -T replace -f "$list_file"
-    "$PFCTL_BIN" -q -e >/dev/null 2>&1 || true
+    _pfctl_exec -q -a "$PF_ANCHOR" -f "$PF_ANCHOR_FILE" >/dev/null
+    _pfctl_exec -q -a "$PF_ANCHOR" -t autosecure_bad_hosts -T replace -f "$list_file" >/dev/null
+    _pfctl_exec -q -e >/dev/null || true
 
     _log "[pf] Applied anchor '${PF_ANCHOR}'."
 }
