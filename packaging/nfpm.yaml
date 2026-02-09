@@ -1,0 +1,24 @@
+name: autosecure
+arch: __ARCH_RPM__
+platform: linux
+version: __VERSION__
+section: net
+priority: optional
+maintainer: Autosecure Contributors <noreply@github.com>
+description: |
+  Autosecure downloads known bad-IP blocklists and applies blocking rules
+  to iptables.
+license: GPL-3.0
+homepage: https://github.com/koconder/autosecure
+contents:
+  - src: ./autosecure.sh
+    dst: /usr/local/bin/autosecure
+    file_info:
+      mode: 0755
+  - src: ./README.md
+    dst: /usr/share/doc/autosecure/README.md
+  - src: ./LICENSE.md
+    dst: /usr/share/doc/autosecure/LICENSE.md
+depends:
+  - bash
+  - iptables
