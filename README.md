@@ -106,6 +106,17 @@ bash tests/test_parsing.sh
 bash tests/test_urls.sh
 ```
 
+Or use Make targets:
+
+```bash
+make validate
+make test
+make test-urls
+make test-urls-offline
+make changelog
+make release-notes TAG=v1.2.3
+```
+
 For offline local runs, skip URL checks with:
 
 ```bash
