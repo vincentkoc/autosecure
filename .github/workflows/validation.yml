@@ -1,0 +1,29 @@
+name: Validation
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+      uses: actions/checkout@v4
+
+      - name: Install shellcheck
+      run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Bash syntax check
+      run: bash -n autosecure.sh
+
+      - name: Shellcheck
+      run: shellcheck autosecure.sh
+
+      - name: Unit tests
+      run: bash tests/test_parsing.sh
+
+      - name: Feed URL checks
+      run: bash tests/test_urls.sh

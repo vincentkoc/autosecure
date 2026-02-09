@@ -1,0 +1,18 @@
+repos:
+  - repo: local
+    hooks:
+      - id: bash-n
+        name: bash -n autosecure.sh
+        entry: bash -n autosecure.sh
+        language: system
+        pass_filenames: false
+      - id: shellcheck
+        name: shellcheck autosecure.sh
+        entry: shellcheck autosecure.sh
+        language: system
+        pass_filenames: false
+      - id: bash-tests
+        name: bash unit tests
+        entry: bash tests/test_parsing.sh
+        language: system
+        pass_filenames: false
