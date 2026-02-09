@@ -1,9 +1,6 @@
 name: Release Drafter
 
 on:
-  push:
-    branches:
-      - master
   workflow_dispatch:
   pull_request_target:
     types:
@@ -23,5 +20,9 @@ jobs:
     steps:
       - name: Draft release notes
         uses: release-drafter/release-drafter@v6
+        with:
+          # Prevent automatic draft releases during normal PR flow.
+          # Manual workflow_dispatch can still be used to refresh a draft.
+          disable-releaser: ${{ github.event_name != 'workflow_dispatch' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
