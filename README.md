@@ -106,13 +106,6 @@ sudo AUTOSECURE_FIREWALL_BACKEND=nft autosecure.sh -q
 sudo AUTOSECURE_FIREWALL_BACKEND=iptables autosecure.sh -q
 ```
 
-### macOS Firewall Setup (`pf`/`pfctl`)
-
-On macOS, the backend `auto` (out of the box setup) selects `pf`, then:
-- (if its your first run) `/etc/pf.conf` is populated with: `anchor "autosecure"` to load rulesfrom "/etc/pf.anchors/autosecure"`
-- Runtime rules are loaded into the `autosecure` anchor and table `autosecure_bad_hosts` via `pfctl`.
-- The common `pfctl -f` warning about flushing startup rules is filtered from output, while real `pfctl` errors are still shown.
-
 ### Scheduled Updates via Cron
 
 <details>
@@ -228,6 +221,15 @@ sudo nft delete table inet autosecure
 
 <details>
 <summary>macOS pf backend</summary>
+
+How it works on macOS:
+
+- Backend `auto` selects `pf`.
+- On first run, `/etc/pf.conf` is auto-bootstrapped with:
+  - `anchor "autosecure"`
+  - `load anchor "autosecure" from "/etc/pf.anchors/autosecure"`
+- Runtime rules are loaded into anchor `autosecure` and table `autosecure_bad_hosts`.
+- Common noisy `pfctl -f` warnings are filtered, while real `pfctl` errors are still shown.
 
 Inspect anchor and table:
 
