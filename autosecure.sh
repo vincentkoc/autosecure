@@ -65,9 +65,14 @@ _print_banner() {
 EOF
 }
 
-_print_help() {
+_print_startup_header() {
     _print_banner
+    printf '🔑 autosecure - made with love by Vincent Koc\n'
     printf '\n'
+}
+
+_print_help() {
+    _print_startup_header
     cat <<'EOF'
 Usage: autosecure.sh [options]
 
@@ -863,7 +868,7 @@ main() {
     fi
 
     if [ "$QUIET" -eq 0 ] && [ -t 1 ]; then
-        _print_banner
+        _print_startup_header
     fi
 
     _validate_settings
