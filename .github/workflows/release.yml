@@ -90,26 +90,27 @@ jobs:
             sha256sum autosecure-*.tar.gz autosecure_*.deb autosecure-*.rpm > sha256sums.txt
           )
 
-      - name: Sign release artifacts (keyless)
+      - name: Sign checksums (keyless)
         run: |
           set -euo pipefail
-          for artifact in dist/autosecure-*.tar.gz dist/autosecure_*.deb dist/autosecure-*.rpm; do
-            cosign sign-blob --yes "$artifact" \
-              --output-signature "${artifact}.sig" \
-              --output-certificate "${artifact}.pem"
-          done
+          cosign sign-blob --yes dist/sha256sums.txt \
+            --output-signature dist/sha256sums.txt.sig \
+            --output-certificate dist/sha256sums.txt.pem
 
-      - name: Verify signatures
+      - name: Verify checksum signature
         run: |
           set -euo pipefail
           WORKFLOW_IDENTITY="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@refs/tags/${GITHUB_REF_NAME}"
-          for artifact in dist/autosecure-*.tar.gz dist/autosecure_*.deb dist/autosecure-*.rpm; do
-            cosign verify-blob "$artifact" \
-              --certificate "${artifact}.pem" \
-              --signature "${artifact}.sig" \
-              --certificate-identity "${WORKFLOW_IDENTITY}" \
-              --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
-          done
+          cosign verify-blob dist/sha256sums.txt \
+            --certificate dist/sha256sums.txt.pem \
+            --signature dist/sha256sums.txt.sig \
+            --certificate-identity "${WORKFLOW_IDENTITY}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+
+      - name: Verify artifact checksums
+        run: |
+          set -euo pipefail
+          (cd dist && sha256sum -c sha256sums.txt)
 
       - name: Generate release notes with Release Drafter
         id: drafter
@@ -202,9 +203,5 @@ jobs:
             dist/autosecure_*.deb
             dist/autosecure-*.rpm
             dist/sha256sums.txt
-            dist/autosecure-*.tar.gz.sig
-            dist/autosecure-*.tar.gz.pem
-            dist/autosecure_*.deb.sig
-            dist/autosecure_*.deb.pem
-            dist/autosecure-*.rpm.sig
-            dist/autosecure-*.rpm.pem
+            dist/sha256sums.txt.sig
+            dist/sha256sums.txt.pem
