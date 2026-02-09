@@ -1,7 +1,7 @@
-<h1 align="center">Autosecure</h1>
+<h1 align="center">🔑 Autosecure</h1>
 
 <p align="center">
-  <strong>Threat-feed IP blocking for Linux and macOS firewalls.</strong>
+  <strong>Public threat-feed and blocklists to automatic IP blocking for Linux and macOS firewalls.</strong>
 </p>
 
 <p align="center">
@@ -16,9 +16,15 @@
   <a href="https://github.com/vincentkoc/autosecure/releases">Releases</a>
 </p>
 
-## Install
+## Why Autosecure?
 
-<details open>
+Threat feeds and blocklists are useful, but manually translating them into firewall rules is repetitive and fragile. Autosecure handles download, parsing, validation, and rule refresh in one script with backend support for `iptables`, `nft`, and `pf` (macOS). Autosecure is very lightweight and can be setup to run daily on a cron to auto-update, its designed to not impact any existing firewall rules and will manage its own set.
+
+Based on [spamhaus script](https://github.com/cowgill/spamhaus) and the original work by <a href="https://github.com/cowgill">cowgill</a> and contributors which is no longer maintained.
+
+## Install Autosecure Package
+
+<details>
 <summary>Homebrew (macOS)</summary>
 
 ```bash
@@ -60,9 +66,13 @@ sudo ./autosecure.sh
 
 </details>
 
-## Why Autosecure?
+## Current Feed Sources
 
-Threat feeds are useful, but manually translating them into firewall rules is repetitive and fragile. Autosecure handles download, parsing, validation, and rule refresh in one script with backend support for `iptables`, `nft`, and `pf`.
+- `https://www.spamhaus.org/drop/drop.txt`
+- `https://www.spamhaus.org/drop/edrop.txt`
+- `http://feeds.dshield.org/block.txt`
+
+Additional URLs to parse can be passed in using the enviroment variable `AUTOSECURE_EXTRA_FEEDS` as comma seperated strings. Just a note the `ZeusTracker` feed is intentionally disabled because the endpoint is no longer available.
 
 ## What You Get
 
@@ -72,45 +82,9 @@ Threat feeds are useful, but manually translating them into firewall rules is re
 - Safe refresh flow with cached fallback if feeds fail
 - Quiet cron-friendly mode
 
-## Quick Start
-
-macOS (`pf`) bootstrap:
-
-```bash
-make pf-bootstrap
-```
-
-`autosecure.sh` now auto-bootstraps `pf` anchor wiring on first run. `make pf-bootstrap` remains available if you want to pre-configure it explicitly.
-
-Then apply rules:
-
-```bash
-sudo autosecure.sh -q
-```
-
-Preview-only (no firewall changes), with timestamped output:
-
-```bash
-sudo autosecure.sh --dry-run
-```
-
-Preview-only with explicit output path:
-
-```bash
-sudo autosecure.sh --dry-run --dry-run-output /tmp/autosecure-rules.txt
-```
-
-Or force a backend:
-
-```bash
-sudo AUTOSECURE_FIREWALL_BACKEND=pf autosecure.sh -q
-sudo AUTOSECURE_FIREWALL_BACKEND=nft autosecure.sh -q
-sudo AUTOSECURE_FIREWALL_BACKEND=iptables autosecure.sh -q
-```
-
 ## Configuration
 
-Environment variables:
+### Environment variables
 
 - `AUTOSECURE_FIREWALL_BACKEND=auto|iptables|nft|pf` (default: `auto`)
 - `AUTOSECURE_RULE_POSITION=append|top` (default: `append`)
@@ -120,76 +94,40 @@ Environment variables:
 - `AUTOSECURE_EXTRA_FEEDS=<url1,url2,...>`
 - `AUTOSECURE_EGF=0|1` (default: `1`)
 
-## Help and Manual
+
+### Force a backend:
 
 ```bash
-autosecure.sh --help
-autosecure.sh --version
-man autosecure
+sudo AUTOSECURE_FIREWALL_BACKEND=pf autosecure.sh -q
+sudo AUTOSECURE_FIREWALL_BACKEND=nft autosecure.sh -q
+sudo AUTOSECURE_FIREWALL_BACKEND=iptables autosecure.sh -q
 ```
 
-If you installed from source and `man autosecure` is missing:
+### macOS Firewall Setup (`pf`/`pfctl`)
 
-```bash
-sudo make install-man
-```
-
-## Feed Sources
-
-- `https://www.spamhaus.org/drop/drop.txt`
-- `https://www.spamhaus.org/drop/edrop.txt`
-- `http://feeds.dshield.org/block.txt`
-
-Note: ZeusTracker feed is intentionally disabled because the endpoint is no longer available.
-
-## macOS Notes (`pf`/`pfctl`)
-
-- On macOS, backend `auto` selects `pf`.
-- First run auto-bootstraps `/etc/pf.conf` with:
-  - `anchor "autosecure"`
-  - `load anchor "autosecure" from "/etc/pf.anchors/autosecure"`
+On macOS, the backend `auto` (out of the box setup) selects `pf`, then:
+- (if its your first run) `/etc/pf.conf` is populated with: `anchor "autosecure"` to load rulesfrom "/etc/pf.anchors/autosecure"`
 - Runtime rules are loaded into the `autosecure` anchor and table `autosecure_bad_hosts` via `pfctl`.
 - The common `pfctl -f` warning about flushing startup rules is filtered from output, while real `pfctl` errors are still shown.
 
-## Scheduled Updates
+### Scheduled Updates via Cron (Linux and Mac)
 
+Example of running everyday at 03:00am
 ```bash
 crontab -e
 0 3 * * * /usr/local/bin/autosecure.sh -q
 ```
 
-## Validation and Tests
-
-```bash
-make validate
-make test
-make test-urls
-make pf-bootstrap  # macOS only
-```
-
-Offline URL-test mode:
-
-```bash
-AUTOSECURE_SKIP_NETWORK_TESTS=1 bash tests/test_urls.sh
-```
-
-Pre-commit:
-
-```bash
-pre-commit install
-pre-commit run --all-files
-```
-
 ## Troubleshooting
 
-Flush chains:
+Flush chains (iptables):
 
 ```bash
 sudo iptables -F Autosecure
 sudo iptables -F AutosecureAct
 ```
 
-Detach chain jumps:
+Detach chain jumps (iptables):
 
 ```bash
 sudo iptables -D INPUT -j Autosecure
@@ -197,7 +135,7 @@ sudo iptables -D FORWARD -j Autosecure
 sudo iptables -D OUTPUT -j Autosecure
 ```
 
-Delete chains:
+Delete chains (iptables):
 
 ```bash
 sudo iptables -X Autosecure
@@ -208,16 +146,6 @@ sudo iptables -X AutosecureAct
 
 Open an issue for bugs or a pull request for improvements.
 
-Donations:
+---
 
-- BTC: `14v9knBDAmJAMxWovuLfy7YkLDyfq8phNb`
-- ETH: `0xe6fbd8de8157934767867022b7a8e8691d8df3dc`
-- EFF: https://supporters.eff.org/donate/button
-
-## License
-
-GNU GPL v3. See `LICENSE.md`.
-
-<p align="center">
-  <sub>Based on the original work by <a href="https://github.com/cowgill">cowgill</a> and contributors.</sub>
-</p>
+Made with 💙 by <a href="https://github.com/vincentkoc">Vincent Koc</a> · <a href="LICENSE">GPL-3.0</a>
