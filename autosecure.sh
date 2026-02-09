@@ -228,7 +228,7 @@ _parse_extra_feeds() {
 }
 
 _pf_is_enabled() {
-    "$PFCTL_BIN" -s info 2>/dev/null | awk -F': ' '/^Status:/ { print $2 }' | grep -qi '^enabled$'
+    "$PFCTL_BIN" -s info 2>/dev/null | awk -F': ' '/^Status:/ { print $2 }' | grep -qi '^enabled'
 }
 
 _count_nonempty_lines() {
