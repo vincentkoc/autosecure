@@ -914,7 +914,7 @@ PFEOF
     total_count="$(_count_nonempty_lines "$list_file")"
     v4_count="$(_count_family_entries v4 "$list_file")"
     v6_count="$(_count_family_entries v6 "$list_file")"
-    _log "[pf] Applied anchor '${PF_ANCHOR}' (entries: total=${total_count}, ipv4=${v4_count}, ipv6=${v6_count})."
+    _log "[pf] Applied anchor ruleset '${PF_ANCHOR}' (entries: total=${total_count}, ipv4=${v4_count}, ipv6=${v6_count})."
 }
 
 main() {
