@@ -449,10 +449,27 @@ _apply_with_nft() {
     _log "[nft] Applied nftables table '${NFT_TABLE}'."
 }
 
-_pf_require_anchor_bootstrap() {
-    if ! grep -q "anchor \"${PF_ANCHOR}\"" /etc/pf.conf; then
-        _die "pf backend requires adding 'anchor \"${PF_ANCHOR}\"' and 'load anchor \"${PF_ANCHOR}\" from \"${PF_ANCHOR_FILE}\"' to /etc/pf.conf"
+_pf_bootstrap_anchor() {
+    local anchor_line="anchor \"${PF_ANCHOR}\""
+    local load_line="load anchor \"${PF_ANCHOR}\" from \"${PF_ANCHOR_FILE}\""
+
+    touch "$PF_ANCHOR_FILE"
+
+    if ! grep -qF "$anchor_line" /etc/pf.conf; then
+        printf '%s\n' "$anchor_line" >> /etc/pf.conf
+        _log "[pf] Added anchor line to /etc/pf.conf."
     fi
+
+    if ! grep -qF "$load_line" /etc/pf.conf; then
+        printf '%s\n' "$load_line" >> /etc/pf.conf
+        _log "[pf] Added load anchor line to /etc/pf.conf."
+    fi
+
+    if ! "$PFCTL_BIN" -nf /etc/pf.conf >/dev/null 2>&1; then
+        _die "Failed to validate /etc/pf.conf after pf bootstrap."
+    fi
+
+    "$PFCTL_BIN" -f /etc/pf.conf >/dev/null 2>&1
 }
 
 _apply_with_pf() {
@@ -462,7 +479,7 @@ _apply_with_pf() {
         _die "pf backend is intended for macOS/Darwin."
     fi
 
-    _pf_require_anchor_bootstrap
+    _pf_bootstrap_anchor
 
     cat > "$PF_ANCHOR_FILE" <<PFEOF
 # Managed by autosecure

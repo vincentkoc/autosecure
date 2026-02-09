@@ -74,11 +74,13 @@ Threat feeds are useful, but manually translating them into firewall rules is re
 
 ## Quick Start
 
-macOS (`pf`) one-time bootstrap:
+macOS (`pf`) bootstrap:
 
 ```bash
 make pf-bootstrap
 ```
+
+`autosecure.sh` now auto-bootstraps `pf` anchor wiring on first run. `make pf-bootstrap` remains available if you want to pre-configure it explicitly.
 
 Then apply rules:
 
