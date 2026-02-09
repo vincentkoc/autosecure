@@ -153,7 +153,7 @@ _pfctl_exec() {
             /Use of -f option, could result in flushing of rules/ { next }
             /present in the main ruleset added by the system at startup\./ { next }
             /See \/etc\/pf.conf for further details\./ { next }
-            /pfctl: pf already enabled/ { next }
+            /pf already enabled/ { next }
             /^$/ { next }
             { print }
         ' "$stderr_file" >&2
@@ -173,14 +173,9 @@ _parse_static_blocklist_file() {
         /^(;|#|$)/ { next }
         {
             ip = $1
+            sub(/\r$/, "", ip)
             if (length(ip) > 64) next
-            if (ip ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$/) {
-                print ip
-                next
-            }
-            if (ip ~ /^[0-9A-Fa-f:]+(\/([0-9]|[1-9][0-9]|1[01][0-9]|12[0-8]))?$/) {
-                print ip
-            }
+            print ip
         }
     ' "$file" | sort -u
 }
@@ -230,6 +225,10 @@ _parse_extra_feeds() {
     fi
 
     printf '%s\n' "$AUTOSECURE_EXTRA_FEEDS" | tr ',' '\n' | awk 'NF > 0 { print $0 }'
+}
+
+_pf_is_enabled() {
+    "$PFCTL_BIN" -s info 2>/dev/null | awk -F': ' '/^Status:/ { print $2 }' | grep -qi '^enabled$'
 }
 
 _count_nonempty_lines() {
@@ -903,7 +902,9 @@ PFEOF
 
     _pfctl_exec -q -a "$PF_ANCHOR" -f "$PF_ANCHOR_FILE" >/dev/null
     _pfctl_exec -q -a "$PF_ANCHOR" -t autosecure_bad_hosts -T replace -f "$list_file" >/dev/null
-    _pfctl_exec -q -e >/dev/null || true
+    if ! _pf_is_enabled; then
+        _pfctl_exec -q -e >/dev/null || true
+    fi
 
     local total_count=0
     local v4_count=0
