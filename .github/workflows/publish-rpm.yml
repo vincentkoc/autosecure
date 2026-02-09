@@ -1,9 +1,12 @@
 name: Publish RPM Packages
 
 on:
-  release:
-    types:
-      - published
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag to publish (for example: v2.0.0)"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -27,7 +30,7 @@ jobs:
       - name: Download release .rpm assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ inputs.tag_name }}
         run: |
           set -euo pipefail
           mkdir -p dist
