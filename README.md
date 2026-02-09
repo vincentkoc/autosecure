@@ -12,15 +12,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/vincentkoc/autosecure/issues">Issues</a> ·
-  <a href="https://github.com/vincentkoc/autosecure/releases">Releases</a>
+  <img src="screenshot.png" alt="Autosecure Demo"/>
 </p>
 
 ## Why Autosecure?
 
-Threat feeds and blocklists are useful, but manually translating them into firewall rules is repetitive and fragile. Autosecure handles download, parsing, validation, and rule refresh in one script with backend support for `iptables`, `nft`, and `pf` (macOS). Autosecure is very lightweight and can be setup to run daily on a cron to auto-update, its designed to not impact any existing firewall rules and will manage its own set.
+Threat feeds and blocklists are useful, but manually translating them into firewall rules is repetitive and fragile. Autosecure handles download, parsing, validation, and rule refresh in one script with backend support for `iptables`, `nft`, and `pf` (macOS). This package is based on [spamhaus script](https://github.com/cowgill/spamhaus) and contributors which has not been maintained in over 10 years. I have since extended its functionality beyond the original script.
 
-Based on [spamhaus script](https://github.com/cowgill/spamhaus) and the original work by <a href="https://github.com/cowgill">cowgill</a> and contributors which is no longer maintained.
+Autosecure is very lightweight and can be setup to run daily on a cron to auto-update, its designed to not impact any existing firewall rules and will manage its own set. It's a perfect set and forget to protect any machine from bad actors.
 
 ## Install Autosecure Package
 
