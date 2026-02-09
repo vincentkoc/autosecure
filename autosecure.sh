@@ -592,7 +592,7 @@ _collect_feed_data() {
         local log_label
         log_label="$(_feed_log_label "$url")"
 
-        _log "[${feed_num}] Downloading ${log_label} to ${TMP_DIR}/"
+        _log "[${feed_num}] Downloading ${log_label}"
         if ! _download_file "$url" "$file"; then
             _log "[${feed_num}] Failed to download ${log_label}. Skipping this source."
             continue
