@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [ "${AUTOSECURE_SKIP_NETWORK_TESTS:-0}" = "1" ]; then
+  echo "Skipping network URL checks (AUTOSECURE_SKIP_NETWORK_TESTS=1)."
+  exit 0
+fi
+
 URLS=(
   "https://www.spamhaus.org/drop/drop.txt"
   "https://www.spamhaus.org/drop/edrop.txt"

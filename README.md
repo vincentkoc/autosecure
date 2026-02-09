@@ -96,6 +96,12 @@ bash tests/test_parsing.sh
 bash tests/test_urls.sh
 ```
 
+For offline local runs, skip URL checks with:
+
+```bash
+AUTOSECURE_SKIP_NETWORK_TESTS=1 bash tests/test_urls.sh
+```
+
 Use pre-commit for the same checks on each commit:
 
 ```bash
