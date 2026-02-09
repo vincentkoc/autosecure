@@ -70,9 +70,13 @@ sudo ./autosecure.sh
 
 - `https://www.spamhaus.org/drop/drop.txt`
 - `https://www.spamhaus.org/drop/edrop.txt`
-- `http://feeds.dshield.org/block.txt`
+- `https://feeds.dshield.org/block.txt`
+- `https://feodotracker.abuse.ch/downloads/ipblocklist.txt`
+- `https://reputation.alienvault.com/reputation.data`
 
 Additional URLs to parse can be passed in using the enviroment variable `AUTOSECURE_EXTRA_FEEDS` as comma seperated strings. Just a note the `ZeusTracker` feed is intentionally disabled because the endpoint is no longer available.
+
+If you want to discover more sources, see: [threatfeeds.io](https://threatfeeds.io/)
 
 ## What You Get
 

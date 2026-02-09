@@ -9,7 +9,9 @@ fi
 URLS=(
   "https://www.spamhaus.org/drop/drop.txt"
   "https://www.spamhaus.org/drop/edrop.txt"
-  "http://feeds.dshield.org/block.txt"
+  "https://feeds.dshield.org/block.txt"
+  "https://feodotracker.abuse.ch/downloads/ipblocklist.txt"
+  "https://reputation.alienvault.com/reputation.data"
   # Disabled: ZeusTracker endpoint is no longer available.
   # "https://zeustracker.abuse.ch/blocklist.php?download=ipblocklist"
 )

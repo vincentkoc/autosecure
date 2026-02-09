@@ -58,6 +58,7 @@ AUTOSECURE_EXTRA_FEEDS="${AUTOSECURE_EXTRA_FEEDS:-${EXTRA_FEEDS:-}}"
 
 _print_banner() {
     cat <<'EOF'
+
              ██
  ▀▀█▄ ██ ██ ▀██▀▀ ▄███▄ ▄█▀▀▀ ▄█▀█▄ ▄████ ██ ██ ████▄ ▄█▀█▄
 ▄█▀██ ██ ██  ██   ██ ██ ▀███▄ ██▄█▀ ██    ██ ██ ██ ▀▀ ██▄█▀
@@ -154,6 +155,7 @@ _pfctl_exec() {
             /Use of -f option, could result in flushing of rules/ { next }
             /present in the main ruleset added by the system at startup\./ { next }
             /See \/etc\/pf.conf for further details\./ { next }
+            /pfctl: pf already enabled/ { next }
             /^$/ { next }
             { print }
         ' "$stderr_file" >&2
@@ -170,6 +172,11 @@ _parse_dshield_file() {
 _parse_static_blocklist_file() {
     local file="$1"
     grep -E -v '^(;|#|$)' "$file" | awk '{ print $1 }' | sort -u
+}
+
+_parse_alienvault_file() {
+    local file="$1"
+    awk -F'#' '/^[0-9]/ { gsub(/[[:space:]]+/, "", $1); print $1 }' "$file" | sort -u
 }
 
 _is_valid_ip_or_cidr() {
@@ -212,6 +219,14 @@ _parse_extra_feeds() {
     fi
 
     printf '%s\n' "$AUTOSECURE_EXTRA_FEEDS" | tr ',' '\n' | awk 'NF > 0 { print $0 }'
+}
+
+_feed_log_label() {
+    local url="$1"
+    local label="${url#http://}"
+    label="${label#https://}"
+    label="${label#www.}"
+    printf '%s\n' "$label"
 }
 
 _count_family_entries() {
@@ -523,18 +538,31 @@ _collect_feed_data() {
     local urls=(
         "https://www.spamhaus.org/drop/drop.txt"
         "https://www.spamhaus.org/drop/edrop.txt"
-        "http://feeds.dshield.org/block.txt"
+        "https://feeds.dshield.org/block.txt"
+        "https://feodotracker.abuse.ch/downloads/ipblocklist.txt"
+        "https://reputation.alienvault.com/reputation.data"
     )
 
     local files=(
         "${TMP_DIR}/spamhaus_drop.txt"
         "${TMP_DIR}/spamhaus_edrop.txt"
         "${TMP_DIR}/dshield_drop.txt"
+        "${TMP_DIR}/feodo_ipblocklist.txt"
+        "${TMP_DIR}/alienvault_reputation.txt"
+    )
+
+    local parsers=(
+        "static"
+        "static"
+        "dshield"
+        "static"
+        "alienvault"
     )
 
     while IFS= read -r extra; do
         urls+=("$extra")
         files+=("${TMP_DIR}/extra_$(printf '%03d' "${#files[@]}").txt")
+        parsers+=("static")
     done < <(_parse_extra_feeds)
 
     : > "$output_file"
@@ -542,39 +570,52 @@ _collect_feed_data() {
     for idx in "${!urls[@]}"; do
         local url="${urls[$idx]}"
         local file="${files[$idx]}"
+        local feed_num=$((idx + 1))
+        local log_label
+        log_label="$(_feed_log_label "$url")"
 
-        _log "Downloading ${url} to ${file} using ${DOWNLOADER}..."
+        _log "[${feed_num}] Downloading ${log_label} to ${TMP_DIR}/"
         if ! _download_file "$url" "$file"; then
-            _log "Failed to download ${url}. Skipping this source."
+            _log "[${feed_num}] Failed to download ${log_label}. Skipping this source."
             continue
         fi
 
         if [ ! -s "$file" ]; then
-            _log "Downloaded file is empty: ${file}. Skipping."
+            _log "[${feed_num}] Downloaded file is empty: ${file}. Skipping."
             rm -f "$file"
             continue
         fi
 
-        _log "Parsing hosts in ${file}..."
+        _log "[${feed_num}] Parsing hosts in ${file}..."
+        local parser="${parsers[$idx]}"
+        case "$parser" in
+            dshield)
+                while IFS= read -r ip; do
+                    [ -n "$ip" ] || continue
+                    if _is_valid_ip_or_cidr "$ip"; then
+                        printf '%s\n' "$ip" >> "$output_file"
+                    fi
+                done < <(_parse_dshield_file "$file")
+                ;;
+            alienvault)
+                while IFS= read -r ip; do
+                    [ -n "$ip" ] || continue
+                    if _is_valid_ip_or_cidr "$ip"; then
+                        printf '%s\n' "$ip" >> "$output_file"
+                    fi
+                done < <(_parse_alienvault_file "$file")
+                ;;
+            *)
+                while IFS= read -r ip; do
+                    [ -n "$ip" ] || continue
+                    if _is_valid_ip_or_cidr "$ip"; then
+                        printf '%s\n' "$ip" >> "$output_file"
+                    fi
+                done < <(_parse_static_blocklist_file "$file")
+                ;;
+        esac
 
-        # Index 2 is DShield format. All others are treated as static blocklist lines.
-        if [ "$idx" -eq 2 ]; then
-            while IFS= read -r ip; do
-                [ -n "$ip" ] || continue
-                if _is_valid_ip_or_cidr "$ip"; then
-                    printf '%s\n' "$ip" >> "$output_file"
-                fi
-            done < <(_parse_dshield_file "$file")
-        else
-            while IFS= read -r ip; do
-                [ -n "$ip" ] || continue
-                if _is_valid_ip_or_cidr "$ip"; then
-                    printf '%s\n' "$ip" >> "$output_file"
-                fi
-            done < <(_parse_static_blocklist_file "$file")
-        fi
-
-        _log "Done parsing ${file}. Removing..."
+        _log "[${feed_num}] Done parsing ${file}. Removing..."
         rm -f "$file"
     done
 
@@ -930,7 +971,7 @@ main() {
                 _die "Required command not found: pfctl"
             fi
             if [ "$IPV6_ENABLE" -eq 0 ]; then
-                _log "pf backend handles both IPv4/IPv6 tables. IPV6_ENABLE ignored."
+                _log "pf backend handles both IPv4/IPv6 tables. 'IPV6_ENABLE' ignored."
             fi
             if [ "$RULE_POSITION" != "append" ]; then
                 _log "RULE_POSITION ignored for pf backend."
