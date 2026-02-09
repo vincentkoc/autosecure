@@ -58,8 +58,6 @@ AUTOSECURE_EXTRA_FEEDS="${AUTOSECURE_EXTRA_FEEDS:-${EXTRA_FEEDS:-}}"
 
 _print_banner() {
     cat <<'EOF'
-
-             ██
  ▀▀█▄ ██ ██ ▀██▀▀ ▄███▄ ▄█▀▀▀ ▄█▀█▄ ▄████ ██ ██ ████▄ ▄█▀█▄
 ▄█▀██ ██ ██  ██   ██ ██ ▀███▄ ██▄█▀ ██    ██ ██ ██ ▀▀ ██▄█▀
 ▀█▄██ ▀██▀█  ██   ▀███▀ ▄▄▄█▀ ▀█▄▄▄ ▀████ ▀██▀█ ██    ▀█▄▄▄
@@ -171,7 +169,20 @@ _parse_dshield_file() {
 
 _parse_static_blocklist_file() {
     local file="$1"
-    grep -E -v '^(;|#|$)' "$file" | awk '{ print $1 }' | sort -u
+    awk '
+        /^(;|#|$)/ { next }
+        {
+            ip = $1
+            if (length(ip) > 64) next
+            if (ip ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$/) {
+                print ip
+                next
+            }
+            if (ip ~ /^[0-9A-Fa-f:]+(\/([0-9]|[1-9][0-9]|1[01][0-9]|12[0-8]))?$/) {
+                print ip
+            }
+        }
+    ' "$file" | sort -u
 }
 
 _parse_alienvault_file() {
