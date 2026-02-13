@@ -17,7 +17,7 @@
 
 ## Why Autosecure?
 
-Threat feeds and blocklists are useful, but manually translating them into firewall rules is repetitive and fragile. Autosecure handles download, parsing, validation, and rule refresh in one script with backend support for `iptables`, `nft`, and `pf` (macOS). This package is based on [spamhaus script](https://github.com/cowgill/spamhaus) and contributors which has not been maintained in over 10 years. I have since extended its functionality beyond the original script.
+Threat feeds and blocklists are useful, but manually translating them into firewall rules is repetitive and fragile. Autosecure handles download, parsing, validation, and rule refresh in one script with backend support for `iptables`, `firewalld`, `ufw`, `nft`, and `pf` (macOS). This package is based on [spamhaus script](https://github.com/cowgill/spamhaus) and contributors which has not been maintained in over 10 years. I have since extended its functionality beyond the original script.
 
 Autosecure is very lightweight and can be setup to run daily on a cron to auto-update, its designed to not impact any existing firewall rules and will manage its own set. It's a perfect set and forget to protect any machine from bad actors.
 
@@ -79,7 +79,7 @@ If you want to discover more sources, see: [threatfeeds.io](https://threatfeeds.
 
 ## What You Get
 
-- Firewall backend auto-detection: `iptables`, `nftables`, `pf`
+- Firewall backend auto-detection: `iptables`, `firewalld`, `ufw`, `nftables`, `pf`
 - IPv4 blocklist ingestion with optional IPv6 support (`ip6tables`)
 - Optional `ipset` acceleration for large lists
 - Safe refresh flow with cached fallback if feeds fail
@@ -89,7 +89,7 @@ If you want to discover more sources, see: [threatfeeds.io](https://threatfeeds.
 
 ### Environment variables
 
-- `AUTOSECURE_FIREWALL_BACKEND=auto|iptables|nft|pf` (default: `auto`)
+- `AUTOSECURE_FIREWALL_BACKEND=auto|iptables|firewalld|ufw|nft|pf` (default: `auto`)
 - `AUTOSECURE_RULE_POSITION=append|top` (default: `append`)
 - `AUTOSECURE_XTABLES_WAIT=<seconds>` (default: `5`)
 - `AUTOSECURE_IPV6_ENABLE=0|1` (default: `0`)
@@ -104,6 +104,8 @@ If you want to discover more sources, see: [threatfeeds.io](https://threatfeeds.
 sudo AUTOSECURE_FIREWALL_BACKEND=pf autosecure.sh -q
 sudo AUTOSECURE_FIREWALL_BACKEND=nft autosecure.sh -q
 sudo AUTOSECURE_FIREWALL_BACKEND=iptables autosecure.sh -q
+sudo AUTOSECURE_FIREWALL_BACKEND=firewalld autosecure.sh -q
+sudo AUTOSECURE_FIREWALL_BACKEND=ufw autosecure.sh -q
 ```
 
 ### Scheduled Updates via Cron

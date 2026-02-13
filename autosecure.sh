@@ -7,6 +7,7 @@ set -euo pipefail
 # Copyright (C) 2014 Vincent Koc @koconder
 # Copyright (C) 2014 Volkan @volkan-k
 # Copyright (C) 2016 Anasxrt @Anasxrt
+# Copyright (C) 2026 0xh3xa @0xh3xa
 
 # Runtime defaults
 QUIET=0
@@ -19,7 +20,7 @@ CACHE_FILE="${STATE_DIR}/blocked_ips.txt"
 DOWNLOADER=""
 AUTOSECURE_VERSION="${AUTOSECURE_VERSION:-dev}"
 
-# Firewall backend: auto|iptables|nft|pf
+# Firewall backend: auto|iptables|firewalld|ufw|nft|pf
 AUTOSECURE_FIREWALL_BACKEND="${AUTOSECURE_FIREWALL_BACKEND:-${FIREWALL_BACKEND:-auto}}"
 FIREWALL_BACKEND="$AUTOSECURE_FIREWALL_BACKEND"
 
@@ -42,6 +43,12 @@ CHAIN="Autosecure"
 CHAINACT="AutosecureAct"
 IPSET_V4_NAME="AutosecureV4"
 IPSET_V6_NAME="AutosecureV6"
+
+# firewalld settings
+FIREWALLD_BIN=""
+
+# ufw settings
+UFW_BIN=""
 
 # nftables settings
 NFT_BIN=""
@@ -84,7 +91,7 @@ Options:
   -V, --version   Show version and exit.
 
 Environment:
-  AUTOSECURE_FIREWALL_BACKEND=auto|iptables|nft|pf
+  AUTOSECURE_FIREWALL_BACKEND=auto|iptables|firewalld|ufw|nft|pf
   AUTOSECURE_RULE_POSITION=append|top
   AUTOSECURE_XTABLES_WAIT=<seconds>
   AUTOSECURE_IPV6_ENABLE=0|1
@@ -348,6 +355,106 @@ _render_iptables_dry_run() {
     done
 }
 
+_render_firewalld_dry_run() {
+    local list_file="$1"
+    local out_file="$2"
+    local ip=""
+    local v4_elements=""
+    local v6_elements=""
+    local first_v4=1
+    local first_v6=1
+
+    # Read the IP list and separate them into v4 and v6
+    while IFS= read -r ip; do
+        [ -n "$ip" ] || continue
+        if _ip_matches_family v4 "$ip"; then
+            if [ "$first_v4" -eq 1 ]; then
+                v4_elements="$ip"
+                first_v4=0
+            else
+                v4_elements="${v4_elements} ${ip}"
+            fi
+        else
+            if [ "$first_v6" -eq 1 ]; then
+                v6_elements="$ip"
+                first_v6=0
+            else
+                v6_elements="${v6_elements} ${ip}"
+            fi
+        fi
+    done < "$list_file"
+
+    {
+        echo "[firewalld] ruleset preview"
+        echo "firewalld would add rules for IPv4: ${v4_elements}"
+        echo "firewalld would add rules for IPv6: ${v6_elements}"
+
+        if [ -n "$v4_elements" ]; then
+            for ip in $v4_elements; do
+                echo "Would execute: firewall-cmd --zone=public --add-rich-rule='rule family=ipv4 source address=$ip reject' --permanent"
+            done
+        fi
+
+        if [ -n "$v6_elements" ]; then
+            for ip in $v6_elements; do
+                echo "Would execute: firewall-cmd --zone=public --add-rich-rule='rule family=ipv6 source address=$ip reject' --permanent"
+            done
+        fi
+
+        echo "Would execute: firewall-cmd --reload"
+    } >> "$out_file"
+}
+
+_render_ufw_dry_run() {
+    local list_file="$1"
+    local out_file="$2"
+    local ip=""
+    local v4_elements=""
+    local v6_elements=""
+    local first_v4=1
+    local first_v6=1
+
+    # Read the IP list and separate them into v4 and v6
+    while IFS= read -r ip; do
+        [ -n "$ip" ] || continue
+        if _ip_matches_family v4 "$ip"; then
+            if [ "$first_v4" -eq 1 ]; then
+                v4_elements="$ip"
+                first_v4=0
+            else
+                v4_elements="${v4_elements} ${ip}"
+            fi
+        else
+            if [ "$first_v6" -eq 1 ]; then
+                v6_elements="$ip"
+                first_v6=0
+            else
+                v6_elements="${v6_elements} ${ip}"
+            fi
+        fi
+    done < "$list_file"
+
+    {
+        echo "[ufw] ruleset preview"
+        echo "ufw would add rules for IPv4: ${v4_elements}"
+        echo "ufw would add rules for IPv6: ${v6_elements}"
+
+        if [ -n "$v4_elements" ]; then
+            for ip in $v4_elements; do
+                echo "Would execute: ufw deny from $ip to any"
+            done
+        fi
+
+        if [ -n "$v6_elements" ]; then
+            for ip in $v6_elements; do
+                echo "Would execute: ufw deny from $ip to any"
+            done
+        fi
+
+        echo "Would execute: ufw reload"
+    } >> "$out_file"
+}
+
 _render_nft_dry_run() {
     local list_file="$1"
     local out_file="$2"
@@ -503,6 +610,16 @@ _detect_firewall_backend() {
         return 0
     fi
 
+    if command -v firewall-cmd --state >/dev/null 2>&1; then
+        FIREWALL_BACKEND="firewalld"
+        return 0
+    fi
+
+    if command -v ufw >/dev/null 2>&1; then
+        FIREWALL_BACKEND="ufw"
+        return 0
+    fi
+
     FIREWALL_BACKEND="iptables"
 }
 
@@ -538,8 +655,8 @@ _validate_settings() {
     esac
 
     case "$FIREWALL_BACKEND" in
-        auto|iptables|nft|pf) ;;
-        *) _die "FIREWALL_BACKEND must be auto|iptables|nft|pf (got: ${FIREWALL_BACKEND})" ;;
+        auto|iptables|firewalld|ufw|nft|pf) ;;
+        *) _die "FIREWALL_BACKEND must be auto|iptables|firewalld|ufw|nft|pf (got: ${FIREWALL_BACKEND})" ;;
     esac
 
     if ! [[ "$XTABLES_WAIT" =~ ^[0-9]+$ ]]; then
@@ -763,6 +880,134 @@ _apply_with_iptables() {
     if [ "$IPV6_ENABLE" -eq 1 ]; then
         _iptables_apply_list_family v6 "$list_file"
     fi
+}
+
+_apply_with_firewalld() {
+    local list_file="$1"
+    local v4_elements=""
+    local v6_elements=""
+    local first_v4=1
+    local first_v6=1
+
+    while IFS= read -r ip; do
+        [ -n "$ip" ] || continue
+        if _ip_matches_family v4 "$ip"; then
+            if [ "$first_v4" -eq 1 ]; then
+                v4_elements="$ip"
+                first_v4=0
+            else
+                v4_elements="${v4_elements} ${ip}"
+            fi
+        else
+            if [ "$first_v6" -eq 1 ]; then
+                v6_elements="$ip"
+                first_v6=0
+            else
+                v6_elements="${v6_elements} ${ip}"
+            fi
+        fi
+    done < "$list_file"
+
+    # Add rules to firewalld
+    if [ -n "$v4_elements" ]; then
+        for ip in $v4_elements; do
+            if [ "$DRY_RUN" -eq 1 ]; then
+                _log "[dry-run] firewalld: would add rule for IPv4 address $ip"
+            else
+                firewall-cmd --zone=public --add-rich-rule="rule family=ipv4 source address=$ip reject" --permanent
+            fi
+        done
+    fi
+
+    if [ -n "$v6_elements" ]; then
+        for ip in $v6_elements; do
+            if [ "$DRY_RUN" -eq 1 ]; then
+                _log "[dry-run] firewalld: would add rule for IPv6 address $ip"
+            else
+                firewall-cmd --zone=public --add-rich-rule="rule family=ipv6 source address=$ip reject" --permanent
+            fi
+        done
+    fi
+
+    if [ "$DRY_RUN" -eq 0 ]; then
+        firewall-cmd --reload
+    fi
+
+    # Log the application of rules
+    local v4_count=0
+    local v6_count=0
+    if [ "$first_v4" -eq 0 ]; then
+        v4_count=$(echo "$v4_elements" | wc -w)
+    fi
+    if [ "$first_v6" -eq 0 ]; then
+        v6_count=$(echo "$v6_elements" | wc -w)
+    fi
+
+    _log "[firewalld] Applied rules (entries: ipv4=$v4_count, ipv6=$v6_count)."
+}
+
+_apply_with_ufw() {
+    local list_file="$1"
+    local v4_elements=""
+    local v6_elements=""
+    local first_v4=1
+    local first_v6=1
+
+    while IFS= read -r ip; do
+        [ -n "$ip" ] || continue
+        if _ip_matches_family v4 "$ip"; then
+            if [ "$first_v4" -eq 1 ]; then
+                v4_elements="$ip"
+                first_v4=0
+            else
+                v4_elements="${v4_elements} ${ip}"
+            fi
+        else
+            if [ "$first_v6" -eq 1 ]; then
+                v6_elements="$ip"
+                first_v6=0
+            else
+                v6_elements="${v6_elements} ${ip}"
+            fi
+        fi
+    done < "$list_file"
+
+    # Apply the UFW rules for IPv4 and IPv6
+    if [ -n "$v4_elements" ]; then
+        for ip in $v4_elements; do
+            if [ "$DRY_RUN" -eq 1 ]; then
+                _log "[dry-run] ufw: would deny traffic from IPv4 address $ip"
+            else
+                ufw deny from "$ip" to any
+            fi
+        done
+    fi
+
+    if [ -n "$v6_elements" ]; then
+        for ip in $v6_elements; do
+            if [ "$DRY_RUN" -eq 1 ]; then
+                _log "[dry-run] ufw: would deny traffic from IPv6 address $ip"
+            else
+                ufw deny from "$ip" to any
+            fi
+        done
+    fi
+
+    if [ "$DRY_RUN" -eq 0 ]; then
+        ufw reload
+    fi
+
+    # Log the application of rules
+    local v4_count=0
+    local v6_count=0
+    if [ "$first_v4" -eq 0 ]; then
+        v4_count=$(echo "$v4_elements" | wc -w)
+    fi
+    if [ "$first_v6" -eq 0 ]; then
+        v6_count=$(echo "$v6_elements" | wc -w)
+    fi
+
+    _log "[ufw] Applied rules (entries: ipv4=$v4_count, ipv6=$v6_count)."
 }
 
 _apply_with_nft() {
@@ -995,6 +1240,48 @@ main() {
                 fi
             fi
             ;;
+        firewalld)
+            if command -v firewall-cmd >/dev/null 2>&1; then
+                FIREWALLD_BIN="$(command -v firewalld)"
+            elif [ "$DRY_RUN" -eq 1 ]; then
+                FIREWALLD_BIN="firewall-cmd"
+            else
+                _die "Required command not found: firewalld"
+            fi
+            if [ "$IPV6_ENABLE" -eq 0 ]; then
+                _log "firewalld backend handles both IPv4/IPv6 tables. 'IPV6_ENABLE' ignored."
+            fi
+            if [ "$IPSET_ENABLE" -eq 1 ]; then
+                if command -v ipset >/dev/null 2>&1; then
+                    IPSET_BIN="$(command -v ipset)"
+                elif [ "$DRY_RUN" -eq 1 ]; then
+                    IPSET_BIN="ipset"
+                else
+                    _die "Required command not found: ipset"
+                fi
+            fi
+            ;;
+        ufw)
+            if command -v ufw >/dev/null 2>&1; then
+                UFW_BIN="$(command -v ufw)"
+            elif [ "$DRY_RUN" -eq 1 ]; then
+                UFW_BIN="ufw"
+            else
+                _die "Required command not found: ufw"
+            fi
+            if [ "$IPV6_ENABLE" -eq 0 ]; then
+                _log "ufw backend handles both IPv4/IPv6 tables. 'IPV6_ENABLE' ignored."
+            fi
+            if [ "$IPSET_ENABLE" -eq 1 ]; then
+                if command -v ipset >/dev/null 2>&1; then
+                    IPSET_BIN="$(command -v ipset)"
+                elif [ "$DRY_RUN" -eq 1 ]; then
+                    IPSET_BIN="ipset"
+                else
+                    _die "Required command not found: ipset"
+                fi
+            fi
+            ;;
         nft)
             if command -v nft >/dev/null 2>&1; then
                 NFT_BIN="$(command -v nft)"
@@ -1069,6 +1356,8 @@ main() {
 
     case "$FIREWALL_BACKEND" in
         iptables) _apply_with_iptables "$active_list" ;;
+        firewalld) _apply_with_firewalld "$active_list" ;;
+        ufw) _apply_with_ufw "$active_list" ;;
         nft) _apply_with_nft "$active_list" ;;
         pf) _apply_with_pf "$active_list" ;;
     esac
