@@ -914,7 +914,7 @@ _apply_with_firewalld() {
             if [ "$DRY_RUN" -eq 1 ]; then
                 _log "[dry-run] firewalld: would add rule for IPv4 address $ip"
             else
-                firewall-cmd --zone=public --add-rich-rule="rule family=ipv4 source address=$ip reject" --permanent
+                "$FIREWALLD_BIN" --zone=public --add-rich-rule="rule family=ipv4 source address=$ip reject" --permanent
             fi
         done
     fi
@@ -924,13 +924,13 @@ _apply_with_firewalld() {
             if [ "$DRY_RUN" -eq 1 ]; then
                 _log "[dry-run] firewalld: would add rule for IPv6 address $ip"
             else
-                firewall-cmd --zone=public --add-rich-rule="rule family=ipv6 source address=$ip reject" --permanent
+                "$FIREWALLD_BIN" --zone=public --add-rich-rule="rule family=ipv6 source address=$ip reject" --permanent
             fi
         done
     fi
 
     if [ "$DRY_RUN" -eq 0 ]; then
-        firewall-cmd --reload
+        "$FIREWALLD_BIN" --reload
     fi
 
     # Log the application of rules
@@ -978,7 +978,7 @@ _apply_with_ufw() {
             if [ "$DRY_RUN" -eq 1 ]; then
                 _log "[dry-run] ufw: would deny traffic from IPv4 address $ip"
             else
-                ufw deny from "$ip" to any
+                "$UFW_BIN" deny from "$ip" to any
             fi
         done
     fi
@@ -988,13 +988,13 @@ _apply_with_ufw() {
             if [ "$DRY_RUN" -eq 1 ]; then
                 _log "[dry-run] ufw: would deny traffic from IPv6 address $ip"
             else
-                ufw deny from "$ip" to any
+                "$UFW_BIN" deny from "$ip" to any
             fi
         done
     fi
 
     if [ "$DRY_RUN" -eq 0 ]; then
-        ufw reload
+        "$UFW_BIN" reload
     fi
 
     # Log the application of rules
@@ -1242,7 +1242,7 @@ main() {
             ;;
         firewalld)
             if command -v firewall-cmd >/dev/null 2>&1; then
-                FIREWALLD_BIN="$(command -v firewalld)"
+                FIREWALLD_BIN="$(command -v firewall-cmd)"
             elif [ "$DRY_RUN" -eq 1 ]; then
                 FIREWALLD_BIN="firewall-cmd"
             else
