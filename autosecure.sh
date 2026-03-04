@@ -489,14 +489,14 @@ _render_nft_dry_run() {
         echo "table inet ${NFT_TABLE} {"
         echo "  set bad_ipv4 {"
         echo "    type ipv4_addr"
-        echo "    flags interval"
+        echo "    flags interval, auto-merge"
         if [ -n "$v4_elements" ]; then
             echo "    elements = { ${v4_elements} }"
         fi
         echo "  }"
         echo "  set bad_ipv6 {"
         echo "    type ipv6_addr"
-        echo "    flags interval"
+        echo "    flags interval, auto-merge"
         if [ -n "$v6_elements" ]; then
             echo "    elements = { ${v6_elements} }"
         fi
@@ -1052,14 +1052,14 @@ _apply_with_nft() {
         echo "table inet ${NFT_TABLE} {"
         echo "  set bad_ipv4 {"
         echo "    type ipv4_addr"
-        echo "    flags interval"
+        echo "    flags interval, auto-merge"
         if [ -n "$v4_elements" ]; then
             echo "    elements = { ${v4_elements} }"
         fi
         echo "  }"
         echo "  set bad_ipv6 {"
         echo "    type ipv6_addr"
-        echo "    flags interval"
+        echo "    flags interval, auto-merge"
         if [ -n "$v6_elements" ]; then
             echo "    elements = { ${v6_elements} }"
         fi
