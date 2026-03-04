@@ -485,7 +485,7 @@ _render_nft_dry_run() {
 
     {
         echo "[nft] ruleset preview"
-        echo "flush table inet ${NFT_TABLE}"
+        echo "delete table inet ${NFT_TABLE} (ignored if missing)"
         echo "table inet ${NFT_TABLE} {"
         echo "  set bad_ipv4 {"
         echo "    type ipv4_addr"
@@ -528,6 +528,7 @@ _render_nft_dry_run() {
         fi
         echo "}"
         echo
+        echo "would run: ${NFT_BIN} delete table inet ${NFT_TABLE} || true"
         echo "would run: ${NFT_BIN} -f <rules-file>"
     } >> "$out_file"
 }
@@ -1050,7 +1051,6 @@ _apply_with_nft() {
     local output_rules="${TMP_DIR}/autosecure.nft"
 
     {
-        echo "flush table inet ${NFT_TABLE}"
         echo "table inet ${NFT_TABLE} {"
         echo "  set bad_ipv4 {"
         echo "    type ipv4_addr"
@@ -1097,6 +1097,7 @@ _apply_with_nft() {
         echo "}"
     } > "$output_rules"
 
+    "$NFT_BIN" delete table inet "$NFT_TABLE" >/dev/null 2>&1 || true
     "$NFT_BIN" -f "$output_rules"
     _log "[nft] Applied nftables table '${NFT_TABLE}' (entries: ipv4=${v4_count}, ipv6=${v6_count})."
 }
