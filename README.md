@@ -27,7 +27,7 @@ Autosecure is very lightweight and can be setup to run daily on a cron to auto-u
 <summary>Homebrew (macOS)</summary>
 
 ```bash
-brew tap vincentkoc/homebrew-tap
+brew tap vincentkoc/tap
 brew install autosecure
 ```
 
